@@ -1,0 +1,55 @@
+#!/bin/bash
+
+path=/opt/script
+#empty existing file
+> $path/new_cf_file;
+> $path/cf_list_file_new;
+> $path/removed_fields.txt
+> $path/updated_fields.txt
+
+#get latest CF count from DB
+CF_NUM=`mysql -u<username> -p<password> <DB name> -Bse "SELECT COUNT(*) from customfield;"`
+#current_num_file has got old count saved in disk as file. Get that count to a variable
+CURRENT_NUM=`cat $path/current_num_file`;
+
+mysql -u<username> -p<password> <DB name> -Bse "SELECT cfname FROM customfield order by id DESC" > $path/cf_list_file_new ;
+
+
+if [[ $CF_NUM -gt $CURRENT_NUM ]] ;
+then
+
+	diff $cf_list_file_old $cf_list_file_new  | grep '^<' >> $path/removed_fields.txt
+	diff $cf_list_file_old $cf_list_file_new  | grep '^>' >> $path/updated_fields.txt;
+
+elif [[ $CF_NUM = $CURRENT_NUM ]] ;
+then
+
+
+UPDATE = `diff $cf_list_file_old $cf_list_file_new | wc -l`
+	if [[ $UPDATE -eq 0 ]]; 
+	then
+	exit 0;
+	else
+	diff $cf_list_file_old $cf_list_file_new  | grep '^<' >> $path/removed_fields.txt
+	diff $cf_list_file_old $cf_list_file_new  | grep '^>' >> $path/updated_fields.txt
+	fi
+
+elif [[ $CF_NUM -lt $CURRENT_NUM ]] ;
+then
+
+	diff $cf_list_file_old $cf_list_file_new  | grep '^<' >> $path/removed_fields.txt
+	diff $cf_list_file_old $cf_list_file_new  | grep '^>' >> $path/updated_fields.txt
+
+fi
+
+ 
+if [[ `cat $path/new_cf_file | wc -l` -ne 0 ]]; then
+#send details of CF collected in while loop to team
+echo -e "Hi Team,\nPlease find the newly added custom fileds below.\n\n`cat $path/new_cf_file`\n\nRegards,\nMolamma" | mailx -s "NEW CUSTOM FIELD CREATION" -r molamma.com  molammasavier@gmail.com
+fi
+
+if [[ `cat $path/removed_fields.txt  $path/updated_fields.txt | wc -l` -ne 0 ]]; then
+echo -e "Hi Team,\nPlease find removed_fields below.\n\n`cat $path/removed_fields`\n\nAdded/Updated fields are:\n`cat $path/updated_fields`\n\nRegards,\nMolamma" | mailx -s "CUSTOM FIELD MODIFICATION" -r molamma.com  molammasavier@gmail.com
+fi
+
+
